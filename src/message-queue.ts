@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import type { Collection, Db, Document } from 'mongodb';
+import type { Collection, Db, Document, ObjectId } from 'mongodb';
 import type {
   DatabaseProvider,
   EnqueueOptions,
@@ -20,7 +20,6 @@ export class MessageQueue extends EventEmitter<MessageQueueEvents> {
   #workers = new Map<string, WorkerFunction>();
   #numWorkers = 0;
   #pollingIntervalId: ReturnType<typeof setInterval> | null = null;
-  #abortController: AbortController | null = null;
 
   registerWorker(type: string, handler: WorkerFunction): void {
     this.#workers.set(type, handler);
@@ -56,7 +55,7 @@ export class MessageQueue extends EventEmitter<MessageQueueEvents> {
       queueItem.nextReceivableTime = options.nextReceivableTime;
     }
 
-    return this.#enqueue(queueItem) as Promise<QueueItem<T>>;
+    return this.#enqueue(queueItem);
   }
 
   async enqueueAndProcess<T extends Document = Document>(
@@ -99,6 +98,7 @@ export class MessageQueue extends EventEmitter<MessageQueueEvents> {
   ): Promise<number> {
     const query = this.#buildQueueItemQuery(type, messageQuery);
     const update = this.#buildQueueItemUpdate(messageUpdate, options);
+    if (Object.keys(update).length === 0) return 0;
     return this.#updateOne(query, update);
   }
 
@@ -110,6 +110,7 @@ export class MessageQueue extends EventEmitter<MessageQueueEvents> {
   ): Promise<number> {
     const query = this.#buildQueueItemQuery(type, messageQuery);
     const update = this.#buildQueueItemUpdate(messageUpdate, options);
+    if (Object.keys(update).length === 0) return 0;
     return this.#updateMany(query, update);
   }
 
@@ -135,7 +136,6 @@ export class MessageQueue extends EventEmitter<MessageQueueEvents> {
 
   #startPolling(): void {
     if (!this.#pollingIntervalId) {
-      this.#abortController = new AbortController();
       this.#pollingIntervalId = setInterval(
         () => this.#poll(),
         this.pollingInterval,
@@ -148,13 +148,10 @@ export class MessageQueue extends EventEmitter<MessageQueueEvents> {
       clearInterval(this.#pollingIntervalId);
       this.#pollingIntervalId = null;
     }
-    if (this.#abortController) {
-      this.#abortController.abort();
-      this.#abortController = null;
-    }
   }
 
   async #poll(): Promise<void> {
+    if (!this.#pollingIntervalId) return;
     if (this.#numWorkers >= this.maxWorkers) return;
 
     this.#numWorkers += 1;
@@ -194,10 +191,10 @@ export class MessageQueue extends EventEmitter<MessageQueueEvents> {
     }
   }
 
-  async #enqueue(queueItem: Omit<QueueItem, '_id'>): Promise<QueueItem> {
+  async #enqueue<T extends Document = Document>(queueItem: Omit<QueueItem<T>, '_id'>): Promise<QueueItem<T>> {
     const collection = await this.#getCollection();
-    const result = await collection.insertOne(queueItem);
-    return { ...queueItem, _id: result.insertedId } as QueueItem;
+    const result = await collection.insertOne(queueItem as any);
+    return { ...queueItem, _id: result.insertedId } as QueueItem<T>;
   }
 
   async #release(queueItem: QueueItem): Promise<void> {
@@ -331,7 +328,7 @@ export class MessageQueue extends EventEmitter<MessageQueueEvents> {
     return result.deletedCount;
   }
 
-  async #removeOneById(id: unknown): Promise<number> {
+  async #removeOneById(id: ObjectId): Promise<number> {
     return this.#removeOne({ _id: id });
   }
 
@@ -351,7 +348,7 @@ export class MessageQueue extends EventEmitter<MessageQueueEvents> {
   }
 
   async #updateOneById(
-    id: unknown,
+    id: ObjectId,
     update: Record<string, unknown>,
   ): Promise<number> {
     return this.#updateOne({ _id: id }, update);

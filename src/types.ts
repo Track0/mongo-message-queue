@@ -1,4 +1,4 @@
-import type { Collection, Db, Document, ObjectId } from 'mongodb';
+import type { Db, Document, ObjectId } from 'mongodb';
 
 export type WorkerStatus = 'Completed' | 'Retry' | 'Rejected';
 
