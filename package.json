@@ -1,19 +1,49 @@
 {
   "name": "mongo-message-queue",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "description": "A promise based message queue for Node.js using a mongodb backing store.",
-  "main": "index.js",
-  "dependencies": {
-    "lodash": ">=3.8.0"
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
-    "mongodb": ">= 4.0.0 < 7"
+    "mongodb": ">= 6.0.0 < 8"
+  },
+  "devDependencies": {
+    "mongodb": "^7.1.0",
+    "mongodb-memory-server": "^10.4.0",
+    "tsup": "^8.4.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/wonderlic/mongo-message-queue.git"
   },
-  "engines": {
-    "node": ">=12"
-  }
+  "license": "MIT"
 }

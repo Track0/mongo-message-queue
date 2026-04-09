@@ -1,5 +1,9 @@
-.idea/*
-node_modules/*
-test/*
+.idea/
+node_modules/
+src/
+test/
+docs/
 .npmrc
-package-lock.json
+tsconfig.json
+tsup.config.ts
+vitest.config.ts
